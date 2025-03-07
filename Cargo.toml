@@ -1,0 +1,34 @@
+[package]
+name = "quic-tun"
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.85.0"
+resolver = "2"
+
+[dependencies]
+tokio = { version = "1.43", features = ["full"] }
+anyhow = { version = "1.0" }
+thiserror = { version = "2" }
+rustls-pemfile = { version = "2.2" }
+clap = { version = "4.5", features = ["derive"] }
+rcgen = { version = "0.13" }
+rustls = { version = "0.23", features = ["ring"] }
+quinn = { version = "0.11.6", features = ["rustls-ring"] }
+tracing = { version = "0.1.41" }
+tracing-subscriber = { version = "0.3.19", features = [
+    "env-filter",
+    "std",
+    "json",
+] }
+
+
+[[bin]]
+name = "quic-tun"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+strip = true
+lto = "thin"
+panic = "abort"
+codegen-units = 1
