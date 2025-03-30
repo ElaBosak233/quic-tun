@@ -5,10 +5,8 @@ use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use tokio::net::TcpStream;
 use tracing::{error, info};
 
-pub async fn launch(target: String, port: u16) -> Result<(), anyhow::Error> {
-    let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
-
-    let (endpoint, _server_cert) = make_server_endpoint(addr)?;
+pub async fn launch(target: String, bind: SocketAddr) -> Result<(), anyhow::Error> {
+    let (endpoint, _server_cert) = make_server_endpoint(bind)?;
 
     loop {
         let incoming = endpoint.accept().await.unwrap();

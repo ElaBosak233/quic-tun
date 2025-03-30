@@ -1,6 +1,7 @@
 mod cli;
 mod util;
 
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use clap::{Parser, command};
@@ -12,14 +13,14 @@ enum QuicTunCli {
     #[clap(alias("c"))]
     Connect {
         server: String,
-        port: u16,
+        bind: SocketAddr,
         #[clap(long = "ca")]
         ca: Option<PathBuf>,
         #[clap(long = "insecure", default_value = "false")]
         insecure: bool,
     },
     #[clap(alias("s"))]
-    Serve { target: String, port: u16 },
+    Serve { target: String, bind: SocketAddr },
 }
 
 #[tokio::main]
@@ -38,16 +39,16 @@ async fn main() {
     match quic_tun_cli {
         QuicTunCli::Connect {
             server,
-            port,
+            bind,
             ca,
             insecure,
         } => {
-            cli::client::launch(server, port, ca, insecure)
+            cli::client::launch(server, bind, ca, insecure)
                 .await
                 .expect("");
         }
-        QuicTunCli::Serve { target, port } => {
-            cli::server::launch(target, port).await.expect("");
+        QuicTunCli::Serve { target, bind } => {
+            cli::server::launch(target, bind).await.expect("");
         }
     }
 }

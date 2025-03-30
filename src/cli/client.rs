@@ -6,10 +6,9 @@ use tokio::net::TcpListener;
 use tracing::{error, info};
 
 pub async fn launch(
-    server: String, port: u16, ca: Option<PathBuf>, insecure: bool,
+    server: String, bind: SocketAddr, ca: Option<PathBuf>, insecure: bool,
 ) -> Result<(), anyhow::Error> {
     let addr: SocketAddr = server.parse()?;
-    let local_addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
 
     let mut roots = Vec::new();
     if let Some(ca_path) = ca {
@@ -17,8 +16,10 @@ pub async fn launch(
     }
     let roots: &[&[u8]] = &roots.iter().map(|v| v.as_slice()).collect::<Vec<_>>();
 
-    let listener = TcpListener::bind(local_addr).await?;
-    let endpoint = make_client_endpoint(local_addr, roots, insecure)?;
+    let listener = TcpListener::bind(bind).await?;
+    let endpoint = make_client_endpoint(bind, roots, insecure)?;
+    info!("Listening on {}", bind);
+
     let connection = Arc::new(endpoint.connect(addr, "server")?.await?);
 
     info!("Connected: addr={}", connection.remote_address());
