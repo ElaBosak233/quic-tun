@@ -6,12 +6,10 @@ use tokio::net::TcpListener;
 use tracing::{error, info};
 
 pub async fn launch(
-    server: String, bind: SocketAddr, ca: Option<PathBuf>, insecure: bool,
+    dest: SocketAddr, bind: SocketAddr, cert: Option<PathBuf>, insecure: bool,
 ) -> Result<(), anyhow::Error> {
-    let addr: SocketAddr = server.parse()?;
-
     let mut roots = Vec::new();
-    if let Some(ca_path) = ca {
+    if let Some(ca_path) = cert {
         roots.push(fs::read(ca_path)?);
     }
     let roots: &[&[u8]] = &roots.iter().map(|v| v.as_slice()).collect::<Vec<_>>();
@@ -20,16 +18,13 @@ pub async fn launch(
     let endpoint = make_client_endpoint(bind, roots, insecure)?;
     info!("Listening on {}", bind);
 
-    let connection = Arc::new(endpoint.connect(addr, "server")?.await?);
-
-    info!("Connected: addr={}", connection.remote_address());
-
     loop {
         let (mut tcp, _) = listener.accept().await?;
-        let conn = Arc::clone(&connection);
+        let connection = endpoint.connect(dest, "server")?.await?;
+        info!("Connected: addr={}", connection.remote_address());
 
         tokio::spawn(async move {
-            let (send_stream, recv_stream) = match conn.open_bi().await {
+            let (send_stream, recv_stream) = match connection.open_bi().await {
                 Ok(streams) => streams,
                 Err(e) => {
                     error!("Failed to open stream: {}", e);
@@ -72,7 +67,13 @@ fn configure_client(root_certs: &[&[u8]]) -> Result<ClientConfig, anyhow::Error>
         certs.add(CertificateDer::from(*cert))?;
     }
 
-    Ok(ClientConfig::with_root_certificates(Arc::new(certs))?)
+    let mut transport = quinn::TransportConfig::default();
+    transport.keep_alive_interval(Some(std::time::Duration::from_secs(2)));
+
+    let mut client_config = ClientConfig::with_root_certificates(Arc::new(certs))?;
+    client_config.transport_config(Arc::new(transport));
+
+    Ok(client_config)
 }
 
 #[derive(Debug)]

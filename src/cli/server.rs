@@ -5,12 +5,12 @@ use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use tokio::net::TcpStream;
 use tracing::{error, info};
 
-pub async fn launch(target: String, bind: SocketAddr) -> Result<(), anyhow::Error> {
+pub async fn launch(dest: SocketAddr, bind: SocketAddr) -> Result<(), anyhow::Error> {
     let (endpoint, _server_cert) = make_server_endpoint(bind)?;
+    info!("Listening on {}", bind);
 
     loop {
         let incoming = endpoint.accept().await.unwrap();
-        let target = target.clone();
 
         tokio::spawn(async move {
             let quic_conn = match incoming.await {
@@ -29,7 +29,7 @@ pub async fn launch(target: String, bind: SocketAddr) -> Result<(), anyhow::Erro
             loop {
                 match quic_conn.accept_bi().await {
                     Ok((send_stream, recv_stream)) => {
-                        let target = target.clone();
+                        let target = dest.clone();
                         tokio::spawn(async move {
                             match TcpStream::connect(target).await {
                                 Ok(mut tcp) => {
@@ -48,7 +48,15 @@ pub async fn launch(target: String, bind: SocketAddr) -> Result<(), anyhow::Erro
                                 }
                             }
                         });
-                    }
+                    },
+                    Err(quinn::ConnectionError::TimedOut) => {
+                        info!("QUIC connection timed out");
+                        break;
+                    },
+                    Err(quinn::ConnectionError::ApplicationClosed { .. }) => {
+                        info!("QUIC connection closed");
+                        break;
+                    },
                     Err(e) => {
                         error!("Stream accept error: {}", e);
                         break;
@@ -75,7 +83,8 @@ fn configure_server() -> Result<(ServerConfig, CertificateDer<'static>), anyhow:
     let mut server_config =
         ServerConfig::with_single_cert(vec![cert_der.clone()], priv_key.into())?;
     let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
-    transport_config.max_concurrent_uni_streams(0_u8.into());
+    transport_config.max_concurrent_bidi_streams(100_u32.into())
+        .max_concurrent_uni_streams(0_u8.into()).keep_alive_interval(Some(std::time::Duration::from_secs(2)));
 
     Ok((server_config, cert_der))
 }

@@ -12,15 +12,15 @@ use tracing::error;
 enum QuicTunCli {
     #[clap(alias("c"))]
     Connect {
-        server: String,
+        dest: SocketAddr,
         bind: SocketAddr,
-        #[clap(long = "ca")]
-        ca: Option<PathBuf>,
-        #[clap(long = "insecure", default_value = "false")]
+        #[clap(long)]
+        cert: Option<PathBuf>,
+        #[clap(long, default_value = "false")]
         insecure: bool,
     },
     #[clap(alias("s"))]
-    Serve { target: String, bind: SocketAddr },
+    Serve { dest: SocketAddr, bind: SocketAddr },
 }
 
 #[tokio::main]
@@ -38,17 +38,17 @@ async fn main() {
 
     match quic_tun_cli {
         QuicTunCli::Connect {
-            server,
+            dest,
             bind,
-            ca,
+            cert,
             insecure,
         } => {
-            cli::client::launch(server, bind, ca, insecure)
+            cli::client::launch(dest, bind, cert, insecure)
                 .await
                 .expect("");
         }
-        QuicTunCli::Serve { target, bind } => {
-            cli::server::launch(target, bind).await.expect("");
+        QuicTunCli::Serve { dest, bind } => {
+            cli::server::launch(dest, bind).await.expect("");
         }
     }
 }
