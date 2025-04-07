@@ -2,7 +2,7 @@ import socket
 import time
 from util.logger import log
 
-def run(server_ip="127.0.0.1", port=23456, total_mb=100, buffer_size=4096):
+def run(server_ip="127.0.0.1", port=12345, total_mb=10, buffer_size=4096):
     total_bytes = total_mb * 1024 * 1024
     sent_bytes = 0
     data = b"x" * buffer_size

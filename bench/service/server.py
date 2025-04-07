@@ -23,8 +23,8 @@ def run(bind_ip="0.0.0.0", port=12345, buffer_size=4096):
     end_time = time.time()
     duration = end_time - start_time
     mb = total_bytes / (1024 * 1024)
-    log.info(f"[+] Received {mb:.2f} MB in {duration:.2f} s")
-    log.info(f"[+] Throughput: {mb / duration:.2f} MB/s")
+    log.info(f"[+] Server Received {mb:.2f} MB in {duration:.2f} s")
+    log.info(f"[+] Server Throughput: {mb / duration:.2f} MB/s")
 
 if __name__ == "__main__":
     run()

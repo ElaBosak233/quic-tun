@@ -1,34 +1,25 @@
 use tokio::io::AsyncWriteExt;
 
 pub async fn bidirectional_copy(
-    tcp_stream: &mut tokio::net::TcpStream,
-    mut send_stream: quinn::SendStream,
-    mut recv_stream: quinn::RecvStream,
+    tcp_stream: &mut tokio::net::TcpStream, mut quic_stream: (quinn::SendStream, quinn::RecvStream),
 ) -> Result<(), anyhow::Error> {
-    let (mut tcp_reader, mut tcp_writer) = tcp_stream.split();
+    let (mut quic_send, mut quic_recv) = quic_stream;
+
+    let (mut tcp_read, mut tcp_write) = tcp_stream.split();
 
     let tcp_to_quic = async {
-        let result = tokio::io::copy(&mut tcp_reader, &mut send_stream).await;
-        send_stream.finish()?;
-        result
+        tokio::io::copy(&mut tcp_read, &mut quic_send).await?;
+        quic_send.finish()?;
+        Ok::<(), anyhow::Error>(())
     };
 
     let quic_to_tcp = async {
-        let result = tokio::io::copy(&mut recv_stream, &mut tcp_writer).await;
-        tcp_writer.shutdown().await?;
-        result
+        tokio::io::copy(&mut quic_recv, &mut tcp_write).await?;
+        tcp_write.shutdown().await?;
+        Ok::<(), anyhow::Error>(())
     };
 
-    tokio::select! {
-        res = tcp_to_quic => {
-            res?;
-            recv_stream.stop(0u32.into()).ok();
-        }
-        res = quic_to_tcp => {
-            res?;
-            send_stream.finish().ok();
-        }
-    }
+    tokio::try_join!(tcp_to_quic, quic_to_tcp)?;
 
     tcp_stream.shutdown().await?;
     Ok(())

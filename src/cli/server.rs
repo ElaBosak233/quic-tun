@@ -28,15 +28,14 @@ pub async fn launch(dest: SocketAddr, bind: SocketAddr) -> Result<(), anyhow::Er
 
             loop {
                 match quic_conn.accept_bi().await {
-                    Ok((send_stream, recv_stream)) => {
+                    Ok(quic_stream) => {
                         let target = dest.clone();
                         tokio::spawn(async move {
                             match TcpStream::connect(target).await {
-                                Ok(mut tcp) => {
+                                Ok(mut tcp_stream) => {
                                     if let Err(e) = crate::util::bidirectional_copy(
-                                        &mut tcp,
-                                        send_stream,
-                                        recv_stream,
+                                        &mut tcp_stream,
+                                        quic_stream,
                                     )
                                     .await
                                     {
@@ -48,15 +47,15 @@ pub async fn launch(dest: SocketAddr, bind: SocketAddr) -> Result<(), anyhow::Er
                                 }
                             }
                         });
-                    },
+                    }
                     Err(quinn::ConnectionError::TimedOut) => {
                         info!("QUIC connection timed out");
                         break;
-                    },
+                    }
                     Err(quinn::ConnectionError::ApplicationClosed { .. }) => {
                         info!("QUIC connection closed");
                         break;
-                    },
+                    }
                     Err(e) => {
                         error!("Stream accept error: {}", e);
                         break;
@@ -83,8 +82,10 @@ fn configure_server() -> Result<(ServerConfig, CertificateDer<'static>), anyhow:
     let mut server_config =
         ServerConfig::with_single_cert(vec![cert_der.clone()], priv_key.into())?;
     let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
-    transport_config.max_concurrent_bidi_streams(100_u32.into())
-        .max_concurrent_uni_streams(0_u8.into()).keep_alive_interval(Some(std::time::Duration::from_secs(2)));
+    transport_config
+        .max_concurrent_bidi_streams(100_u32.into())
+        .max_concurrent_uni_streams(0_u8.into())
+        .keep_alive_interval(Some(std::time::Duration::from_secs(2)));
 
     Ok((server_config, cert_der))
 }

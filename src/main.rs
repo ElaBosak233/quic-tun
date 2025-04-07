@@ -1,8 +1,7 @@
 mod cli;
 mod util;
 
-use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::{net::SocketAddr, path::PathBuf};
 
 use clap::{Parser, command};
 use tracing::error;
@@ -12,7 +11,9 @@ use tracing::error;
 enum QuicTunCli {
     #[clap(alias("c"))]
     Connect {
+        #[clap(long)]
         dest: SocketAddr,
+        #[clap(long, default_value = "0.0.0.0:4443")]
         bind: SocketAddr,
         #[clap(long)]
         cert: Option<PathBuf>,
@@ -20,7 +21,12 @@ enum QuicTunCli {
         insecure: bool,
     },
     #[clap(alias("s"))]
-    Serve { dest: SocketAddr, bind: SocketAddr },
+    Serve {
+        #[clap(long)]
+        dest: SocketAddr,
+        #[clap(long, default_value = "0.0.0.0:4443")]
+        bind: SocketAddr,
+    },
 }
 
 #[tokio::main]

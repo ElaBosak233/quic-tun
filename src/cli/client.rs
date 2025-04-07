@@ -19,12 +19,12 @@ pub async fn launch(
     info!("Listening on {}", bind);
 
     loop {
-        let (mut tcp, _) = listener.accept().await?;
+        let (mut tcp_stream, _) = listener.accept().await?;
         let connection = endpoint.connect(dest, "server")?.await?;
         info!("Connected: addr={}", connection.remote_address());
 
         tokio::spawn(async move {
-            let (send_stream, recv_stream) = match connection.open_bi().await {
+            let quic_stream = match connection.open_bi().await {
                 Ok(streams) => streams,
                 Err(e) => {
                     error!("Failed to open stream: {}", e);
@@ -32,9 +32,7 @@ pub async fn launch(
                 }
             };
 
-            if let Err(e) =
-                crate::util::bidirectional_copy(&mut tcp, send_stream, recv_stream).await
-            {
+            if let Err(e) = crate::util::bidirectional_copy(&mut tcp_stream, quic_stream).await {
                 error!("Copy error: {}", e);
             }
         });
