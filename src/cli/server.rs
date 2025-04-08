@@ -95,8 +95,8 @@ fn configure_server(cert: Option<PathBuf>, key: Option<PathBuf>) -> Result<(Serv
     let mut server_config = ServerConfig::with_single_cert(vec![cert_der.clone()], key_der.into())?;
     let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
     transport_config
-        .max_concurrent_bidi_streams(100_u32.into())
-        .max_concurrent_uni_streams(0_u8.into())
+        // .max_concurrent_bidi_streams(100_u32.into())
+        // .max_concurrent_uni_streams(0_u8.into())
         .keep_alive_interval(Some(std::time::Duration::from_secs(2)));
 
     Ok((server_config, cert_der))
