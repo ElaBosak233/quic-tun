@@ -55,9 +55,8 @@ jobs:
             rustc-${{ runner.os }}-${{ matrix.target }}-
             rustc-${{ runner.os }}-
 
-      - name: Build on version ${{ env.app_v }}-${{ env.commit_sha }}
+      - name: Cargo build
         run: |
-          base64 -d <<< '${{ vars.PUBKEY_BASE64 }}' > config/pub.bin
           cargo build --bin quic-tun --release --target '${{ matrix.target }}'
 
       - name: Upload artifact
