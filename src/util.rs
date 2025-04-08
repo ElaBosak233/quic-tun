@@ -1,4 +1,17 @@
+use std::net::SocketAddr;
+
 use tokio::io::AsyncWriteExt;
+use tracing::error;
+
+pub async fn parse_addr(addr: String) -> Result<SocketAddr, anyhow::Error> {
+    match tokio::net::lookup_host(&addr).await {
+        Ok(mut addr) => Ok(addr.next().unwrap()),
+        Err(err) => {
+            error!("Failed to resolve destination: {:?}", err);
+            std::process::exit(1);
+        }
+    }
+}
 
 pub async fn bidirectional_copy(
     tcp_stream: &mut tokio::net::TcpStream, mut quic_stream: (quinn::SendStream, quinn::RecvStream),

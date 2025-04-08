@@ -9,28 +9,49 @@ use tracing::error;
 #[derive(Parser)]
 #[command(name = "quic-tun", bin_name = "quic-tun", version, about)]
 enum QuicTunCli {
+    /// Connect to a QUIC tunnel server and forward traffic (client mode)
     #[clap(alias("c"))]
     Connect {
+        /// Destination address to connect to (domain:port or IP:port)
         #[clap(long)]
-        dest: SocketAddr,
+        dest: String,
+
+        /// Local address to bind to (default: 0.0.0.0:4443)
         #[clap(long, default_value = "0.0.0.0:4443")]
         bind: SocketAddr,
+
+        /// Path to custom certificate authority (CA) file (optional)
         #[clap(long)]
         cert: Option<PathBuf>,
+
+        /// Skip certificate verification (dangerous, for testing only)
         #[clap(long, default_value = "false")]
         insecure: bool,
     },
+
+    /// Run as a QUIC tunnel server and forward traffic to destination
     #[clap(alias("s"))]
     Serve {
+        /// Destination address to forward to (IP/domain:port)
         #[clap(long)]
-        dest: SocketAddr,
+        dest: String,
+
+        /// Address to listen for incoming QUIC connections (default: 0.0.0.0:4443)
         #[clap(long, default_value = "0.0.0.0:4443")]
         bind: SocketAddr,
+
+        /// Path to TLS certificate in PEM or DER format (optional)
+        #[clap(long)]
+        cert: Option<PathBuf>,
+
+        /// Path to private key in PEM or DER format (optional)
+        #[clap(long)]
+        key: Option<PathBuf>,
     },
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), anyhow::Error> {
     cli::logger::init();
     rustls::crypto::ring::default_provider()
         .install_default()
@@ -49,12 +70,12 @@ async fn main() {
             cert,
             insecure,
         } => {
-            cli::client::launch(dest, bind, cert, insecure)
-                .await
-                .expect("");
+            cli::client::launch(util::parse_addr(dest).await?, bind, cert, insecure).await?;
         }
-        QuicTunCli::Serve { dest, bind } => {
-            cli::server::launch(dest, bind).await.expect("");
+        QuicTunCli::Serve { dest, bind, cert, key } => {
+            cli::server::launch(util::parse_addr(dest).await?, bind, cert, key).await?;
         }
     }
+
+    Ok(())
 }
