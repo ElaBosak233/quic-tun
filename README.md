@@ -1,3 +1,3 @@
 # QUIC Tunnel
 
-A small TCP over QUIC tunnel implementation.
+A simple TCP over QUIC tunnel implementation. Pure bidirectional copy, no special optimization.
